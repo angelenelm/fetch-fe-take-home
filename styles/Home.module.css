@@ -18,7 +18,7 @@
 
 .login > label::after {
   content: '*';
-  color: #ffb3c2;
+  color: var(--red);
 }
 
 .login > input {
@@ -41,5 +41,6 @@
 }
 
 .error {
-  color: #ffb3c2;
+  color: var(--red);
+  font-size: 0.75rem;
 }

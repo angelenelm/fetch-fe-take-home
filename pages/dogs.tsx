@@ -1,7 +1,64 @@
 import Head from 'next/head';
+import Router from 'next/router';
+import { useState, useEffect } from 'react';
 import styles from '@/styles/Dogs.module.css';
 
+interface Dog {
+  id: string;
+  img: string;
+  name: string;
+  age: number;
+  zip_code: string;
+  breed: string;
+}
+
 export default function Dogs() {
+  const [dogIds, setDogIds] = useState([]);
+  const [dogs, setDogs] = useState([]);
+  const [next, setNext] = useState('');
+  const [prev, setPrev] = useState('');
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Get initial list of dog IDs
+        let response = await fetch(
+          'https://frontend-take-home-service.fetch.com/dogs/search?sort=breed:asc',
+          {
+            method: 'GET',
+            credentials: 'include',
+          }
+        );
+
+        let data = await response.json();
+        setDogIds(data.resultIds);
+        setNext(data.next);
+        setPrev(data.prev);
+
+        // Get initial list of Dog objects
+        response = await fetch(
+          'https://frontend-take-home-service.fetch.com/dogs',
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dogIds),
+          }
+        );
+
+        data = await response.json();
+        setDogs(data);
+      } catch (error) {
+        // Unauthorized request: access token expired, redirect to login
+        Router.push('/?expired=true');
+      }
+    }
+
+    fetchData();
+  });
+
   return (
     <>
       <Head>
@@ -11,9 +68,22 @@ export default function Dogs() {
       </Head>
       <main className={styles.main}>
         <h1>Dogs</h1>
-        <div className={styles.search}>
-          <label htmlFor='dog-search'>Search:</label>
-          <input type='search' id='dog-search' placeholder='' />
+        {/* <div className={styles.search}>
+          Filter by breed: GET /dogs/breeds
+        </div> */}
+        <div className={styles.dogs}>
+          <ol>
+            {dogs.map((dog: Dog, index) => (
+              <li key={index}>
+                <img src={dog.img} />
+                <div className={styles.overlay}>
+                  <p className={styles.name}>{dog.name}</p>
+                  <p className={styles.breed}>{dog.breed}</p>
+                  <p className={styles.age}>{`${dog.age} year${dog.age !== 1 ? 's' : ''} old`}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </main>
     </>

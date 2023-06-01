@@ -1,9 +1,11 @@
 import Head from 'next/head';
-import Router from 'next/router';
+import Router, { useRouter } from 'next/router';
 import { useState } from 'react';
 import styles from '@/styles/Home.module.css';
 
 export default function Home() {
+  const router = useRouter();
+  const { expired } = router.query;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loginError, setLoginError] = useState(false);
@@ -14,10 +16,10 @@ export default function Home() {
         'https://frontend-take-home-service.fetch.com/auth/login',
         {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
-          credentials: 'include',
           body: JSON.stringify({
             name: name,
             email: email,
@@ -42,6 +44,14 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1>Login</h1>
+        {(loginError && (
+          <p className={styles.error}>Login failed, please try again.</p>
+        )) ||
+          (expired && (
+            <p className={styles.error}>
+              Session expired, please log in again.
+            </p>
+          ))}
         <form
           className={styles.login}
           onSubmit={(event) => {
@@ -70,9 +80,6 @@ export default function Home() {
             Login
           </button>
         </form>
-        {loginError && (
-          <p className={styles.error}>Login failed, please try again.</p>
-        )}
       </main>
     </>
   );
