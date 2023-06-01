@@ -5,7 +5,35 @@ import styles from '@/styles/Home.module.css';
 
 export default function Home() {
   const router = useRouter();
-  const { error, expired } = router.query;
+  const { expired } = router.query;
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [loginError, setLoginError] = useState(false);
+
+  async function handleSubmit() {
+    try {
+      const response = await fetch(
+        'https://frontend-take-home-service.fetch.com/auth/login',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        Router.push('/dogs');
+      }
+    } catch (error) {
+      setLoginError(true);
+    }
+  }
 
   return (
     <>
@@ -16,7 +44,7 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1>Login</h1>
-        {(error && (
+        {(loginError && (
           <p className={styles.error}>Login failed, please try again.</p>
         )) ||
           (expired && (
@@ -24,7 +52,12 @@ export default function Home() {
               Session expired, please log in again.
             </p>
           ))}
-        <form className={styles.login} action='/api/login'>
+        <form
+          className={styles.login}
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSubmit();
+          }}>
           <label htmlFor='name'>Name</label>
           <input
             type='text'
@@ -32,6 +65,7 @@ export default function Home() {
             name='name'
             placeholder='John Wick'
             required
+            onChange={(event) => setName(event.target.value)}
           />
           <label htmlFor='email'>Email</label>
           <input
@@ -40,6 +74,7 @@ export default function Home() {
             name='email'
             placeholder='johnwick@gmail.com'
             required
+            onChange={(event) => setEmail(event.target.value)}
           />
           <button type='submit' className={styles.submit}>
             Login
