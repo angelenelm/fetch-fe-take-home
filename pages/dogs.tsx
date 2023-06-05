@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import Router from 'next/router';
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import styles from '@/styles/Dogs.module.css';
 
 interface Dog {
@@ -12,52 +13,37 @@ interface Dog {
   breed: string;
 }
 
+const URL = 'https://frontend-take-home-service.fetch.com';
+const fetcher = async (url: string) => {
+  let response = await fetch(url, { credentials: 'include' });
+  return await response.json();
+};
+
 export default function Dogs() {
+  const { data, error } = useSWR(`${URL}/dogs/search?sort=breed:asc`, fetcher);
   const [dogIds, setDogIds] = useState([]);
   const [dogs, setDogs] = useState([]);
-  const [next, setNext] = useState('');
-  const [prev, setPrev] = useState('');
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        // Get initial list of dog IDs
-        let response = await fetch(
-          'https://frontend-take-home-service.fetch.com/dogs/search?sort=breed:asc',
-          {
-            method: 'GET',
-            credentials: 'include',
-          }
-        );
+    if (!error && data) setDogIds(data.resultIds);
+  }, []);
 
-        let data = await response.json();
-        setDogIds(data.resultIds);
-        setNext(data.next);
-        setPrev(data.prev);
+  function fetchDogs() {
+    fetch('https://frontend-take-home-service.fetch.com/dogs', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(dogIds),
+    })
+      .then((response) => response.json())
+      .then((data) => setDogs(data));
+  }
 
-        // Get initial list of Dog objects
-        response = await fetch(
-          'https://frontend-take-home-service.fetch.com/dogs',
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(dogIds),
-          }
-        );
-
-        data = await response.json();
-        setDogs(data);
-      } catch (error) {
-        // Unauthorized request: access token expired, redirect to login
-        Router.push('/?expired=true');
-      }
-    }
-
-    fetchData();
-  });
+  useEffect(() => {
+    fetchDogs();
+  }, []);
 
   return (
     <>
@@ -68,18 +54,20 @@ export default function Dogs() {
       </Head>
       <main className={styles.main}>
         <h1>Dogs</h1>
-        {/* <div className={styles.search}>
-          Filter by breed: GET /dogs/breeds
-        </div> */}
         <div className={styles.dogs}>
           <ol>
-            {dogs.map((dog: Dog, index) => (
+            {dogs.map((dog: Dog, index: number) => (
               <li key={index}>
-                <img src={dog.img} />
+                <img
+                  src={dog.img}
+                  alt={`${dog.name}, a ${dog.age} year old ${dog.breed}.`}
+                />
                 <div className={styles.overlay}>
                   <p className={styles.name}>{dog.name}</p>
                   <p className={styles.breed}>{dog.breed}</p>
-                  <p className={styles.age}>{`${dog.age} year${dog.age !== 1 ? 's' : ''} old`}</p>
+                  <p className={styles.age}>{`${dog.age} year${
+                    dog.age !== 1 ? 's' : ''
+                  } old`}</p>
                 </div>
               </li>
             ))}
