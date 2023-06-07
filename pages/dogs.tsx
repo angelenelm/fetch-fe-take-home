@@ -2,6 +2,7 @@ import Head from 'next/head';
 import Router from 'next/router';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
+
 import styles from '@/styles/Dogs.module.css';
 
 interface Dog {
@@ -20,30 +21,67 @@ const fetcher = async (url: string) => {
 };
 
 export default function Dogs() {
-  const { data, error } = useSWR(`${URL}/dogs/search?sort=breed:asc`, fetcher);
   const [dogIds, setDogIds] = useState([]);
   const [dogs, setDogs] = useState([]);
+  const [next, setNext] = useState(null);
+  const [prev, setPrev] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    if (!error && data) setDogIds(data.resultIds);
-  }, []);
+  const { data, error, isLoading } = useSWR(
+    `${URL}/dogs/search?sort=breed:asc&from=${25 * page}`,
+    fetcher
+  );
 
-  function fetchDogs() {
-    fetch('https://frontend-take-home-service.fetch.com/dogs', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(dogIds),
-    })
-      .then((response) => response.json())
-      .then((data) => setDogs(data));
+  // fetch-access-token most likely expired, redirect to login
+  if (error) {
+    console.log(`Error: ${error}`);
+    Router.push('/?expired=true');
   }
 
   useEffect(() => {
+    if (data) {
+      setDogIds(data.resultIds);
+      setNext(data.next);
+      setPrev(data.prev);
+      setTotal(data.total);
+      setTotalPages(Math.floor(data.total / 25));
+    }
+
+    async function fetchDogs() {
+      try {
+        let response = await fetch(`${URL}/dogs`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dogIds),
+        });
+
+        let data = await response.json();
+        setDogs(data);
+      } catch (error) {
+        // fetch-access-token most likely expired, redirect to login
+        Router.push('/?expired=true');
+      }
+    }
+
     fetchDogs();
-  }, []);
+  }, [data, error, dogIds]);
+
+  function createPageButtons() {
+    let pageButtons = [];
+    for (let i = 0; i < totalPages; i++) {
+      pageButtons.push(
+        <button className={styles.pageNumber} onClick={() => setPage(i)} disabled={page === i}>
+          {i + 1}
+        </button>
+      );
+    }
+    return pageButtons;
+  }
 
   return (
     <>
@@ -54,24 +92,38 @@ export default function Dogs() {
       </Head>
       <main className={styles.main}>
         <h1>Dogs</h1>
+        <p>{total} results</p>
         <div className={styles.dogs}>
-          <ol>
-            {dogs.map((dog: Dog, index: number) => (
-              <li key={index}>
-                <img
-                  src={dog.img}
-                  alt={`${dog.name}, a ${dog.age} year old ${dog.breed}.`}
-                />
-                <div className={styles.overlay}>
-                  <p className={styles.name}>{dog.name}</p>
-                  <p className={styles.breed}>{dog.breed}</p>
-                  <p className={styles.age}>{`${dog.age} year${
-                    dog.age !== 1 ? 's' : ''
-                  } old`}</p>
-                </div>
-              </li>
-            ))}
+          <ol className={styles.search}>
+            {isLoading && <p>Loading...</p>}
+            {dogs &&
+              dogs.map((dog: Dog, index: number) => (
+                <li key={index}>
+                  <img
+                    src={dog.img}
+                    alt={`${dog.name}, a ${dog.age} year old ${dog.breed}.`}
+                  />
+                  <div className={styles.overlay}>
+                    <p className={styles.name}>{dog.name}</p>
+                    <p className={styles.breed}>{dog.breed}</p>
+                    <p className={styles.age}>{`${dog.age} year${
+                      dog.age !== 1 ? 's' : ''
+                    } old`}</p>
+                  </div>
+                </li>
+              ))}
           </ol>
+        </div>
+        <div className={styles.pageNavigation}>
+          <button onClick={() => setPage(page - 1)} disabled={page === 0}>
+            Previous
+          </button>
+          {createPageButtons()}
+          <button
+            onClick={() => setPage(page + 1)}
+            disabled={page + 1 === totalPages}>
+            Next
+          </button>
         </div>
       </main>
     </>
